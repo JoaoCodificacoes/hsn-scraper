@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { kv } from '@vercel/kv';
+import { extractPriceFromHtml } from '@/lib/parser';
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_TOKEN;
 
@@ -61,38 +62,7 @@ export async function GET() {
     }
 
     const html = await response.text();
-    const lines = html.split('\n');
-    let currentPrice = 0;
-
-    // Parse logic
-    for (let line of lines) {
-      if (line.includes('{"attributes":{') && line.includes('content_weight')) {
-        line = line.trim();
-        const start = line.indexOf('{"attributes":{');
-        if (start !== -1) {
-          const jsonStr = line.substring(start);
-          let count = 0, end = 0;
-          for (let i = 0; i < jsonStr.length; i++) {
-            if (jsonStr[i] === '{') count++;
-            else if (jsonStr[i] === '}') {
-              count--;
-              if (count === 0) { end = i + 1; break; }
-            }
-          }
-          if (end > 0) {
-            try {
-              const data = JSON.parse(jsonStr.substring(0, end));
-              const weightAttr = data.attributes['216'];
-              const twokgOpt = weightAttr.options.find((opt: any) => opt.label === '2Kg');
-              if (twokgOpt) {
-                const pid = twokgOpt.products[0];
-                currentPrice = data.optionPrices[pid].finalPrice.amount;
-              }
-            } catch (err) {}
-          }
-        }
-      }
-    }
+    const currentPrice = extractPriceFromHtml(html);
 
     if (!currentPrice) {
       return NextResponse.json({ error: 'Could not extract price data' }, { status: 500 });
