@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import nacl from 'tweetnacl';
+import { verifyKey } from 'discord-interactions';
 import { kv } from '@vercel/kv';
 
 export async function POST(req: Request) {
@@ -13,18 +13,10 @@ export async function POST(req: Request) {
     }
 
     const PUBLIC_KEY = process.env.DISCORD_PUBLIC_KEY || '';
-    if (!PUBLIC_KEY) {
-      console.error('Missing DISCORD_PUBLIC_KEY environment variable');
-      return NextResponse.json({ error: 'Server misconfigured' }, { status: 500 });
-    }
 
-    const isVerified = nacl.sign.detached.verify(
-      Buffer.from(timestamp + bodyText),
-      Buffer.from(signature, 'hex'),
-      Buffer.from(PUBLIC_KEY, 'hex')
-    );
+    const isValid = await verifyKey(bodyText, signature, timestamp, PUBLIC_KEY);
 
-    if (!isVerified) {
+    if (!isValid) {
       return NextResponse.json({ error: 'Invalid request signature' }, { status: 401 });
     }
 
@@ -40,7 +32,6 @@ export async function POST(req: Request) {
       const commandName = body.data.name;
       
       if (commandName === 'subscribe') {
-        // Extract product option (whey, creatine)
         const productOption = body.data.options?.[0]?.value || 'evowhey';
         const userId = body.member?.user?.id || body.user?.id;
         
@@ -52,7 +43,7 @@ export async function POST(req: Request) {
         await kv.sadd(`subs:${productOption}`, userId);
 
         return NextResponse.json({
-          type: 4, // 4 = respond with message in channel
+          type: 4,
           data: {
             content: `✅ Successfully subscribed! You will be pinged if the price of **${productOption}** drops.`,
           }
