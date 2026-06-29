@@ -37,9 +37,14 @@ async function sendDiscordMessage(userId: string, content: string) {
 export async function GET() {
   try {
     const targetUrl = 'https://www.hsnstore.pt/marcas/sport-series/evowhey-protein';
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
     
-    const response = await fetch(proxyUrl, {
+    // Use ScraperAPI if the key is provided in Vercel to bypass Cloudflare
+    let fetchUrl = targetUrl;
+    if (process.env.SCRAPER_API_KEY) {
+      fetchUrl = `http://api.scraperapi.com?api_key=${process.env.SCRAPER_API_KEY}&url=${encodeURIComponent(targetUrl)}`;
+    }
+    
+    const response = await fetch(fetchUrl, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
       },
