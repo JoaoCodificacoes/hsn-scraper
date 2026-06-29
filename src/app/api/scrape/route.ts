@@ -44,7 +44,13 @@ export async function GET() {
       },
     });
 
-    if (!response.ok) return NextResponse.json({ error: 'Fetch failed' }, { status: 500 });
+    if (!response.ok) {
+      return NextResponse.json({ 
+        error: 'Fetch failed', 
+        status: response.status, 
+        statusText: response.statusText 
+      }, { status: 500 });
+    }
 
     const html = await response.text();
     const lines = html.split('\n');
