@@ -8,42 +8,52 @@ The system is fully automated and serverless, utilizing GitHub Actions, Vercel, 
 
 ```mermaid
 sequenceDiagram
+    participant User as Discord User
     participant GitHub as GitHub Actions (Cron)
-    participant Vercel as Vercel API (/api/scrape)
+    participant Vercel as Vercel API
     participant Scraper as ScrapingAnt Proxy
     participant HSN as HSN Store (Target)
     participant Redis as Upstash Redis (KV)
     participant Discord as Discord API
 
+    Note over User,Vercel: Slash Commands Flow
+    User->>Vercel: /subscribe, /unsubscribe, /test
+    Vercel->>Redis: Check User Rate Limit (15 req/min)
+    Vercel->>Redis: Save/Remove User from subs:{product}
+    Vercel-->>User: Ephemeral Response
+    
+    Note over GitHub,Discord: Automated Scrape Flow
     GitHub->>Vercel: 1. Trigger Scrape (09:00 & 16:00)
-    Note over GitHub,Vercel: Includes ?secret=CRON_SECRET
-    Vercel->>Scraper: 2. Fetch HTML via Proxy (browser=false)
-    Scraper->>HSN: 3. Bypasses Cloudflare
-    HSN-->>Scraper: Raw HTML
-    Scraper-->>Vercel: Raw HTML
+    Note over GitHub,Vercel: Bypasses 10 req/day global limit via ?secret=CRON_SECRET
     
-    Vercel->>Vercel: 4. Parse & Extract Price
-    
-    Vercel->>Redis: 5. Compare against previousPrice
-    
-    alt If Price Dropped > 10%
-        Vercel->>Redis: 6. Get Subscribed Users
-        Redis-->>Vercel: [User IDs]
-        Vercel->>Discord: 7. POST /users/@me/channels
-        Discord-->>Vercel: DM Channel ID
-        Vercel->>Discord: 8. POST /channels/{id}/messages
+    loop For each Product (Evowhey & Creatine)
+        Vercel->>Scraper: 2. Fetch HTML via Proxy
+        Scraper->>HSN: 3. Bypasses Cloudflare
+        Scraper-->>Vercel: Raw HTML
+        
+        Vercel->>Vercel: 4. Extract currentPrice
+        Vercel->>Redis: 5. Compare currentPrice vs baselinePrice
+        
+        alt If percentDrop >= 10%
+            Vercel->>Redis: 6. Get Subscribed Users for Product
+            Vercel->>Discord: 7. Open DM & Send Alert
+            Vercel->>Redis: 8. Update Baseline to new Sale Price
+        else If currentPrice > baselinePrice
+            Vercel->>Redis: 9. Sale ended! Reset Baseline higher.
+        end
+        Note over Vercel,Redis: If drop is minor (<10%), Baseline is NOT updated (Smart Sliding Baseline)
     end
-    
-    Vercel->>Redis: 9. Set currentPrice
-    Vercel-->>GitHub: 200 OK Response
 ```
 
 ## ✨ Features
-1. **Automated Scraping**: Runs exactly at 9 AM and 4 PM local time using GitHub Actions.
-2. **Cloudflare Evasion**: Uses the ScrapingAnt Proxy API (bypassing heavy headless browsers) to fetch HSN pricing fast and reliably.
-3. **Database Memory**: Upstash Redis tracks the previous price to calculate percentage drops.
-4. **Discord Bot**: Type `/subscribe` directly in a DM to the bot, and it will message you automatically when a flash sale occurs.
-5. **Abuse Protection**: Global rate limiting (max 10 public requests per day) and a private `CRON_SECRET` to prevent API abuse and quota drainage.
+1. **Multi-Product Tracking**: Simultaneously tracks multiple products (Evowhey 2Kg, Creatine 1Kg).
+2. **Smart Sliding Baseline**: Perfectly handles slow, multi-day creeping flash sales by refusing to lower the internal baseline until a full 10% drop occurs!
+3. **Automated Scraping**: Runs exactly at 9 AM and 4 PM local time using GitHub Actions.
+4. **Cloudflare Evasion**: Uses the ScrapingAnt Proxy API (bypassing heavy headless browsers) to fetch HSN pricing fast and reliably.
+5. **Discord Bot & DM Alerts**: Simply type `/subscribe` in a server with the bot, and it will automatically Direct Message you when a sale hits. Includes `/unsubscribe` and a `/test` drive command.
+6. **Anti-Spam Security**: 
+   - Global Scraper Limit: Maximum 10 public requests per day (Cron jobs bypass this using a private `CRON_SECRET`).
+   - Discord Bot Limit: Strict limit of 15 slash commands per minute per user to protect the database from malicious spam bots.
 
 ## 🚀 Setup & Environment Variables
 
