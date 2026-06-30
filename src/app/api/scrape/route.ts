@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import { extractPriceFromHtml } from '@/lib/parser';
 
 export const maxDuration = 60; // 60 seconds (max for Hobby tier)
 
+const redis = Redis.fromEnv();
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_TOKEN;
 
@@ -74,7 +75,7 @@ export async function GET() {
     // KV Logic
     const DB_KEY = 'price:evowhey:2kg';
     const SUBS_KEY = 'subs:evowhey';
-    const previousPrice = await kv.get<number>(DB_KEY);
+    const previousPrice = await redis.get<number>(DB_KEY);
 
     let dropDetected = false;
     let percentDrop = 0;
@@ -88,7 +89,7 @@ export async function GET() {
         dropDetected = true;
         
         // Notify subscribers
-        const subscribers = await kv.smembers(SUBS_KEY);
+        const subscribers = await redis.smembers(SUBS_KEY);
         const alertMsg = `🚨 **PRICE DROP ALERT!** 🚨\nThe price of Evowhey 2Kg has dropped by **${percentDrop.toFixed(1)}%**!\nPrevious: ${previousPrice}€\nNew Price: **${currentPrice}€**\n\nBuy now: ${targetUrl}`;
         
         for (const userId of subscribers) {
@@ -98,7 +99,7 @@ export async function GET() {
     }
 
     // Always update the stored price to the latest one
-    await kv.set(DB_KEY, currentPrice);
+    await redis.set(DB_KEY, currentPrice);
 
     return NextResponse.json({
       success: true,

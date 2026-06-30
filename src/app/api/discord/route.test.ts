@@ -1,17 +1,22 @@
 import { POST } from './route';
 import { verifyKey } from 'discord-interactions';
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 
 // Mock the dependencies
 jest.mock('discord-interactions', () => ({
   verifyKey: jest.fn(),
 }));
 
-jest.mock('@vercel/kv', () => ({
-  kv: {
-    sadd: jest.fn(),
-  },
-}));
+jest.mock('@upstash/redis', () => {
+  const mockSadd = jest.fn();
+  return {
+    Redis: {
+      fromEnv: () => ({
+        sadd: mockSadd
+      })
+    }
+  };
+});
 
 describe('Discord POST Endpoint', () => {
   beforeEach(() => {
@@ -67,7 +72,7 @@ describe('Discord POST Endpoint', () => {
     const res = await POST(req);
     const json = await res.json();
     
-    expect(kv.sadd).toHaveBeenCalledWith('subs:evowhey', 'user123');
+    expect(Redis.fromEnv().sadd).toHaveBeenCalledWith('subs:evowhey', 'user123');
     expect(json.type).toBe(4);
     expect(json.data.content).toContain('Successfully subscribed!');
   });

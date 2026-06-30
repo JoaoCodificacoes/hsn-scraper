@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { verifyKey } from 'discord-interactions';
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
+
+const redis = Redis.fromEnv();
 
 export async function POST(req: Request) {
   try {
@@ -40,7 +42,7 @@ export async function POST(req: Request) {
         }
 
         // Add user to the Set of subscribers for this product
-        await kv.sadd(`subs:${productOption}`, userId);
+        await redis.sadd(`subs:${productOption}`, userId);
 
         return NextResponse.json({
           type: 4,
