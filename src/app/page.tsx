@@ -1,65 +1,157 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useEffect, useState, useMemo } from "react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { format, parseISO } from "date-fns";
+import { Activity, BellRing, TrendingDown } from "lucide-react";
+
+// Types
+type HistoryItem = { price: number; date: string };
+type ApiData = { evowhey: HistoryItem[]; creatine: HistoryItem[] };
+
+export default function Dashboard() {
+  const [data, setData] = useState<ApiData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/history")
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.success) {
+          setData(json.data);
+        }
+        setLoading(false);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch history:", err);
+        setLoading(false);
+      });
+  }, []);
+
+  const chartData = useMemo(() => {
+    if (!data) return [];
+    
+    // Group by day and take minimum price
+    const grouped: Record<string, { date: string; evowhey?: number; creatine?: number }> = {};
+    
+    const processSeries = (items: HistoryItem[], key: "evowhey" | "creatine") => {
+      items.forEach(item => {
+        if (!item.date || !item.price) return;
+        const day = item.date.split("T")[0]; // YYYY-MM-DD
+        if (!grouped[day]) {
+          grouped[day] = { date: day };
+        }
+        const existingPrice = grouped[day][key];
+        if (existingPrice === undefined || item.price < existingPrice) {
+          grouped[day][key] = item.price;
+        }
+      });
+    };
+
+    if (data.evowhey) processSeries(data.evowhey, "evowhey");
+    if (data.creatine) processSeries(data.creatine, "creatine");
+
+    // Convert to sorted array
+    return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date));
+  }, [data]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-zinc-950 text-white">
+        <Activity className="animate-spin text-emerald-400 w-12 h-12" />
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-zinc-950 text-white p-6 sm:p-12 font-sans selection:bg-emerald-500/30">
+      <div className="max-w-5xl mx-auto space-y-8">
+        
+        {/* Header */}
+        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-6">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold tracking-tight text-zinc-100 flex items-center gap-3">
+              <TrendingDown className="text-emerald-400 w-8 h-8" />
+              HSN Price Analytics
+            </h1>
+            <p className="text-zinc-400">Real-time flash sale tracking and historical data.</p>
+          </div>
+          <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-full border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+            <BellRing className="w-4 h-4" />
+            <span className="text-sm font-medium tracking-wide">Discord Bot Active</span>
+          </div>
+        </header>
+
+        {/* Chart Section */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl">
+          <div className="mb-6 space-y-1">
+            <h2 className="text-xl font-semibold text-zinc-100">Lowest Daily Price</h2>
+            <p className="text-sm text-zinc-400">Tracking Evowhey 2Kg and Creatine 1Kg drops over time.</p>
+          </div>
+          
+          <div className="h-[400px] w-full">
+            {chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="#a1a1aa" 
+                    tick={{ fill: '#a1a1aa', fontSize: 12 }}
+                    tickFormatter={(val) => {
+                      try { return format(parseISO(val), "MMM d") } catch { return val }
+                    }}
+                    tickMargin={10}
+                  />
+                  <YAxis 
+                    stroke="#a1a1aa" 
+                    tick={{ fill: '#a1a1aa', fontSize: 12 }}
+                    tickFormatter={(val) => `€${val}`}
+                    domain={['auto', 'auto']}
+                  />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#18181b', borderColor: '#3f3f46', borderRadius: '8px' }}
+                    itemStyle={{ color: '#fff' }}
+                    labelStyle={{ color: '#a1a1aa', marginBottom: '8px' }}
+                    formatter={(value: any) => [`€${Number(value).toFixed(2)}`, '']}
+                    labelFormatter={(label) => {
+                      try { return format(parseISO(label as string), "MMMM d, yyyy") } catch { return label }
+                    }}
+                  />
+                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                  <Line 
+                    type="monotone" 
+                    dataKey="evowhey" 
+                    name="Evowhey 2Kg" 
+                    stroke="#10b981" 
+                    strokeWidth={3} 
+                    dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                    connectNulls
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="creatine" 
+                    name="Creatine 1Kg" 
+                    stroke="#3b82f6" 
+                    strokeWidth={3} 
+                    dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
+                    activeDot={{ r: 6, strokeWidth: 0 }}
+                    connectNulls
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full w-full flex flex-col items-center justify-center text-zinc-500 border-2 border-dashed border-zinc-800 rounded-xl">
+                <Activity className="w-10 h-10 mb-3 opacity-50" />
+                <p>No historical data collected yet.</p>
+                <p className="text-sm mt-1">Data will appear here after the next cron job runs!</p>
+              </div>
+            )}
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+
+      </div>
     </div>
   );
 }

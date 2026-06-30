@@ -63,9 +63,13 @@ export async function GET(req: Request) {
 
       let dropDetected = false;
       let percentDrop = 0;
+      const timestamp = new Date().toISOString();
 
       // Always save the absolute latest price so the Discord bot can check it
       await redis.set(CURRENT_KEY, currentPrice);
+      
+      // Save the historical price point
+      await redis.rpush(`history:${product.id}`, JSON.stringify({ price: currentPrice, date: timestamp }));
 
       if (!previousPrice) {
         // First time running ever, set the initial baseline price
