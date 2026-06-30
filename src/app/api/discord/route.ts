@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyKey } from 'discord-interactions';
 import { redis } from '@/lib/redis';
+import { sendDiscordMessage } from '@/lib/discord';
 
 export async function POST(req: Request) {
   try {
@@ -61,17 +62,15 @@ export async function POST(req: Request) {
       }
 
       if (commandName === 'test') {
-        // Run test drive asynchronously so Discord receives the ACK immediately
-        fetch('https://hsn-scraper.vercel.app/api/discord/test', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId })
-        }).catch(console.error);
+        const testMsg = `🚨 **[TEST DRIVE] PRICE DROP ALERT!** 🚨\nThe price of Evowhey 2Kg has dropped by **25.0%**!\nPrevious Baseline: 61.48€\nNew Price: **46.11€**\n\nBuy now: https://www.hsnstore.pt/marcas/sport-series/evowhey-protein`;
+        
+        // Wait for the DM to be sent before returning, so Vercel doesn't freeze the process!
+        await sendDiscordMessage(userId, testMsg);
 
         return NextResponse.json({
           type: 4,
           data: {
-            content: `🏎️ Test drive initiated! I am sending you a DM right now...`,
+            content: `🏎️ Test drive successful! I just sent you a DM!`,
           }
         });
       }
@@ -84,4 +83,5 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
 
