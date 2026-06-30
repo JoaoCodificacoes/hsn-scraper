@@ -134,7 +134,7 @@ export default function Dashboard() {
                   <Line 
                     type="monotone" 
                     dataKey="evowhey" 
-                    name="Evowhey 2Kg" 
+                    name="Evowhey" 
                     stroke="#10b981" 
                     strokeWidth={3} 
                     dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}

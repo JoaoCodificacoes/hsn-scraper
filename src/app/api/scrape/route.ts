@@ -8,7 +8,7 @@ export const maxDuration = 60; // 60 seconds (max for Hobby tier)
 const PRODUCTS = [
   {
     id: 'evowhey',
-    name: 'Evowhey 2Kg',
+    name: 'Evowhey',
     url: 'https://www.hsnstore.pt/marcas/sport-series/evowhey-protein',
     weightLabel: '2Kg'
   },
