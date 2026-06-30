@@ -135,7 +135,7 @@ export default function Dashboard() {
                     contentStyle={{ backgroundColor: '#18181b', borderColor: '#3f3f46', borderRadius: '8px' }}
                     itemStyle={{ color: '#fff' }}
                     labelStyle={{ color: '#a1a1aa', marginBottom: '8px' }}
-                    formatter={(value: any) => [`€${Number(value).toFixed(2)}`, '']}
+                    formatter={(value: any, name: any) => [`€${Number(value).toFixed(2)}`, name]}
                     labelFormatter={(label) => {
                       try { return format(parseISO(label as string), "MMMM d, yyyy", { locale: t.dateLocale }) } catch { return label }
                     }}
