@@ -86,7 +86,7 @@ export async function GET(req: Request) {
           const alreadyAlerted = await redis.smembers(ALERTED_KEY);
           const unalertedUsers = subscribers.filter(id => !alreadyAlerted.includes(id));
           
-          const alertMsg = `🚨 **PRICE DROP ALERT!** 🚨\nThe price of **${product.name}** has dropped by **${percentDrop.toFixed(1)}%**!\nPrevious Baseline: ${previousPrice}€\nNew Price: **${currentPrice}€**\n\nBuy now: ${product.url}`;
+          const alertMsg = `🚨 **PRICE DROP ALERT!** 🚨\nThe price of **${product.name}** has dropped by **${percentDrop.toFixed(1)}%**!\nPrevious Baseline: ${previousPrice.toFixed(2)}€\nNew Price: **${currentPrice.toFixed(2)}€**\n\nBuy now: ${product.url}`;
           
           for (const userId of unalertedUsers) {
             await sendDiscordMessage(userId, alertMsg);
