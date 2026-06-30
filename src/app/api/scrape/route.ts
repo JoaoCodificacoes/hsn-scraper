@@ -49,7 +49,7 @@ export async function GET() {
     // Use ScrapingAnt if the key is provided in Vercel (10,000 free requests/month)
     let fetchUrl = targetUrl;
     if (process.env.SCRAPINGANT_API_KEY) {
-      fetchUrl = `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(targetUrl)}&x-api-key=${process.env.SCRAPINGANT_API_KEY}`;
+      fetchUrl = `https://api.scrapingant.com/v2/general?url=${encodeURIComponent(targetUrl)}&x-api-key=${process.env.SCRAPINGANT_API_KEY}&browser=false`;
     } else if (process.env.SCRAPER_API_KEY) {
       fetchUrl = `http://api.scraperapi.com?api_key=${process.env.SCRAPER_API_KEY}&url=${encodeURIComponent(targetUrl)}`;
     }
