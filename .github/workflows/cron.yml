@@ -1,0 +1,16 @@
+name: HSN Scraper Cron
+
+on:
+  schedule:
+    # Runs at 08:00 and 20:00 UTC every day (twice a day)
+    - cron: "0 8,20 * * *"
+  workflow_dispatch: # Allows you to manually trigger it from the GitHub Actions tab
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Vercel Scraper Endpoint
+        run: |
+          echo "Triggering the scrape API..."
+          curl -s -m 60 https://hsn-scraper.vercel.app/api/scrape
