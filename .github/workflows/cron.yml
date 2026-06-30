@@ -13,4 +13,4 @@ jobs:
       - name: Ping Vercel Scraper Endpoint
         run: |
           echo "Triggering the scrape API..."
-          curl -s -m 60 https://hsn-scraper.vercel.app/api/scrape
+          curl -s -m 60 "https://hsn-scraper.vercel.app/api/scrape?secret=${{ secrets.CRON_SECRET }}"
