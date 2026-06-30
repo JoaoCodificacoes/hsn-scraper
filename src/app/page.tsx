@@ -3,17 +3,51 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format, parseISO } from "date-fns";
+import { enUS, pt } from "date-fns/locale";
 import { Activity, BellRing, TrendingDown } from "lucide-react";
 
 // Types
 type HistoryItem = { price: number; date: string };
 type ApiData = { evowhey: HistoryItem[]; creatine: HistoryItem[] };
 
+// Translations
+const translations = {
+  en: {
+    title: "HSN Price Analytics",
+    subtitle: "Real-time flash sale tracking and historical data.",
+    botActive: "Discord Bot Active",
+    chartTitle: "Lowest Daily Price",
+    chartDesc: "Tracking Evowhey 2Kg and Creatine 1Kg drops over time.",
+    noData: "No historical data collected yet.",
+    noDataSub: "Data will appear here after the next cron job runs!",
+    dateLocale: enUS
+  },
+  pt: {
+    title: "Análise de Preços HSN",
+    subtitle: "Rastreamento de promoções em tempo real e histórico de preços.",
+    botActive: "Bot Discord Ativo",
+    chartTitle: "Preço Mínimo Diário",
+    chartDesc: "Acompanhando quedas de preço de Evowhey 2Kg e Creatina 1Kg.",
+    noData: "Nenhum dado histórico coletado ainda.",
+    noDataSub: "Os dados aparecerão aqui após a próxima execução do cron job!",
+    dateLocale: pt
+  }
+};
+
 export default function Dashboard() {
   const [data, setData] = useState<ApiData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [lang, setLang] = useState<"en" | "pt">("en");
 
   useEffect(() => {
+    // Detect browser language
+    if (typeof navigator !== "undefined") {
+      const browserLang = navigator.language.toLowerCase();
+      if (browserLang.startsWith("pt")) {
+        setLang("pt");
+      }
+    }
+
     fetch("/api/history")
       .then((res) => res.json())
       .then((json) => {
@@ -55,6 +89,8 @@ export default function Dashboard() {
     return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date));
   }, [data]);
 
+  const t = translations[lang];
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-zinc-950 text-white">
@@ -72,21 +108,21 @@ export default function Dashboard() {
           <div className="space-y-1">
             <h1 className="text-3xl font-bold tracking-tight text-zinc-100 flex items-center gap-3">
               <TrendingDown className="text-emerald-400 w-8 h-8" />
-              HSN Price Analytics
+              {t.title}
             </h1>
-            <p className="text-zinc-400">Real-time flash sale tracking and historical data.</p>
+            <p className="text-zinc-400">{t.subtitle}</p>
           </div>
           <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-full border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
             <BellRing className="w-4 h-4" />
-            <span className="text-sm font-medium tracking-wide">Discord Bot Active</span>
+            <span className="text-sm font-medium tracking-wide">{t.botActive}</span>
           </div>
         </header>
 
         {/* Chart Section */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl">
           <div className="mb-6 space-y-1">
-            <h2 className="text-xl font-semibold text-zinc-100">Lowest Daily Price</h2>
-            <p className="text-sm text-zinc-400">Tracking Evowhey 2Kg and Creatine 1Kg drops over time.</p>
+            <h2 className="text-xl font-semibold text-zinc-100">{t.chartTitle}</h2>
+            <p className="text-sm text-zinc-400">{t.chartDesc}</p>
           </div>
           
           <div className="h-[400px] w-full">
@@ -99,7 +135,7 @@ export default function Dashboard() {
                     stroke="#a1a1aa" 
                     tick={{ fill: '#a1a1aa', fontSize: 12 }}
                     tickFormatter={(val) => {
-                      try { return format(parseISO(val), "MMM d") } catch { return val }
+                      try { return format(parseISO(val), "MMM d", { locale: t.dateLocale }) } catch { return val }
                     }}
                     tickMargin={10}
                   />
@@ -115,7 +151,7 @@ export default function Dashboard() {
                     labelStyle={{ color: '#a1a1aa', marginBottom: '8px' }}
                     formatter={(value: any) => [`€${Number(value).toFixed(2)}`, '']}
                     labelFormatter={(label) => {
-                      try { return format(parseISO(label as string), "MMMM d, yyyy") } catch { return label }
+                      try { return format(parseISO(label as string), "MMMM d, yyyy", { locale: t.dateLocale }) } catch { return label }
                     }}
                   />
                   <Legend wrapperStyle={{ paddingTop: '20px' }} />
@@ -144,8 +180,8 @@ export default function Dashboard() {
             ) : (
               <div className="h-full w-full flex flex-col items-center justify-center text-zinc-500 border-2 border-dashed border-zinc-800 rounded-xl">
                 <Activity className="w-10 h-10 mb-3 opacity-50" />
-                <p>No historical data collected yet.</p>
-                <p className="text-sm mt-1">Data will appear here after the next cron job runs!</p>
+                <p>{t.noData}</p>
+                <p className="text-sm mt-1">{t.noDataSub}</p>
               </div>
             )}
           </div>
