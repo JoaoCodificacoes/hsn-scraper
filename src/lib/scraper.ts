@@ -1,4 +1,4 @@
-import { extractPriceFromHtml } from './parser';
+
 
 /**
  * Fetches the raw HTML from a target URL using ScrapingAnt or ScraperAPI proxy.
@@ -29,10 +29,3 @@ export async function fetchProxyHtml(targetUrl: string): Promise<string> {
   return response.text();
 }
 
-/**
- * High-level orchestration function to scrape a product and get its price.
- */
-export async function scrapeProductPrice(url: string, weightLabel?: string): Promise<number | null> {
-  const html = await fetchProxyHtml(url);
-  return extractPriceFromHtml(html, weightLabel);
-}

@@ -1,24 +1,11 @@
 import { NextResponse } from 'next/server';
 import { redis, ratelimit } from '@/lib/redis';
 import { sendDiscordMessage } from '@/lib/discord';
-import { scrapeProductPrice } from '@/lib/scraper';
+import { fetchProxyHtml } from '@/lib/scraper';
+import { extractPriceFromHtml } from '@/lib/parser';
+import { PRODUCTS } from '@/lib/config';
 
 export const maxDuration = 60; // 60 seconds (max for Hobby tier)
-
-const PRODUCTS = [
-  {
-    id: 'evowhey',
-    name: 'Evowhey',
-    url: 'https://www.hsnstore.pt/marcas/sport-series/evowhey-protein',
-    weightLabel: '2Kg'
-  },
-  {
-    id: 'creatine',
-    name: 'Creatine 1Kg',
-    url: 'https://www.hsnstore.pt/marcas/raw-series/creatina-monoidrato-em-po-200-mesh',
-    weightLabel: '1Kg'
-  }
-];
 
 export async function GET(req: Request) {
   try {
@@ -46,7 +33,8 @@ export async function GET(req: Request) {
 
     // 2. Loop through all products
     for (const product of PRODUCTS) {
-      const currentPrice = await scrapeProductPrice(product.url, product.weightLabel);
+      const html = await fetchProxyHtml(product.url);
+      const currentPrice = extractPriceFromHtml(html, product.weightLabel);
 
       if (!currentPrice) {
         console.error(`Could not extract price data for ${product.id}`);

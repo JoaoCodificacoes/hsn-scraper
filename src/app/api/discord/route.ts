@@ -3,6 +3,8 @@ import { verifyKey } from 'discord-interactions';
 import { redis, discordRatelimit } from '@/lib/redis';
 import { sendDiscordMessage } from '@/lib/discord';
 
+import { PRODUCTS } from '@/lib/config';
+
 export async function POST(req: Request) {
   try {
     const signature = req.headers.get('x-signature-ed25519');
@@ -49,11 +51,13 @@ export async function POST(req: Request) {
       
       if (commandName === 'subscribe') {
         const productOption = body.data.options?.[0]?.value || 'evowhey';
+        const productDef = PRODUCTS.find(p => p.id === productOption);
+        const niceName = productDef ? productDef.name : productOption;
         
         // Add user to the Set of subscribers for this product
         await redis.sadd(`subs:${productOption}`, userId);
 
-        let responseText = `✅ Successfully subscribed! You will be pinged if the price of **${productOption}** drops.`;
+        let responseText = `✅ Successfully subscribed! You will be pinged if the price of **${niceName}** drops.`;
 
         // Check if there is an ACTIVE sale right now!
         const BASELINE_KEY = `price:${productOption}`;
@@ -70,7 +74,7 @@ export async function POST(req: Request) {
           
           if (percentDrop >= 10) {
             // Instant Alert!
-            const alertMsg = `🚨 **PRICE DROP ALERT!** 🚨\nThe price of **${productOption}** is CURRENTLY dropped by **${percentDrop.toFixed(1)}%**!\nPrevious Baseline: ${baseline}€\nNew Price: **${current}€**\n\nBuy now!`;
+            const alertMsg = `🚨 **PRICE DROP ALERT!** 🚨\nThe price of **${niceName}** is CURRENTLY dropped by **${percentDrop.toFixed(1)}%**!\nPrevious Baseline: ${baseline.toFixed(2)}€\nNew Price: **${current.toFixed(2)}€**\n\nBuy now!`;
             
             try {
               await sendDiscordMessage(userId, alertMsg);
@@ -94,12 +98,15 @@ export async function POST(req: Request) {
       
       if (commandName === 'unsubscribe') {
         const productOption = body.data.options?.[0]?.value || 'evowhey';
+        const productDef = PRODUCTS.find(p => p.id === productOption);
+        const niceName = productDef ? productDef.name : productOption;
+        
         await redis.srem(`subs:${productOption}`, userId);
 
         return NextResponse.json({
           type: 4,
           data: {
-            content: `✅ Successfully unsubscribed from **${productOption}** alerts.`,
+            content: `✅ Successfully unsubscribed from **${niceName}** alerts.`,
           }
         });
       }
