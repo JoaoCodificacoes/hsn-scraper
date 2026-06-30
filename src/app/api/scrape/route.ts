@@ -43,26 +43,38 @@ export async function GET(req: Request) {
     let dropDetected = false;
     let percentDrop = 0;
 
-    if (previousPrice) {
+    if (!previousPrice) {
+      // First time running ever, set the initial baseline price
+      await redis.set(DB_KEY, currentPrice);
+    } else {
       const difference = previousPrice - currentPrice;
       percentDrop = (difference / previousPrice) * 100;
       
-      // If price drops by more than 10%
-      if (percentDrop > 10) {
+      if (percentDrop >= 10) {
         dropDetected = true;
         
         // Notify subscribers
         const subscribers = await redis.smembers(SUBS_KEY);
-        const alertMsg = `🚨 **PRICE DROP ALERT!** 🚨\nThe price of Evowhey 2Kg has dropped by **${percentDrop.toFixed(1)}%**!\nPrevious: ${previousPrice}€\nNew Price: **${currentPrice}€**\n\nBuy now: ${targetUrl}`;
+        const alertMsg = `🚨 **PRICE DROP ALERT!** 🚨\nThe price of Evowhey 2Kg has dropped by **${percentDrop.toFixed(1)}%**!\nPrevious Baseline: ${previousPrice}€\nNew Price: **${currentPrice}€**\n\nBuy now: ${targetUrl}`;
         
         for (const userId of subscribers) {
           await sendDiscordMessage(userId, alertMsg);
         }
-      }
-    }
 
-    // 4. Update Database
-    await redis.set(DB_KEY, currentPrice);
+        // 4. Update Database
+        // Reset baseline to the new low so we don't keep alerting every 12 hours while the sale is active
+        await redis.set(DB_KEY, currentPrice);
+
+      } else if (currentPrice > previousPrice) {
+        // 4. Update Database
+        // Price went back up (sale ended, or base price increased). Establish new high baseline.
+        await redis.set(DB_KEY, currentPrice);
+      }
+      
+      // NOTE: If the price dropped slightly (<10%) or stayed exactly the same, 
+      // we DO NOTHING to the baseline! This allows small consecutive daily drops 
+      // to eventually trigger the >10% threshold.
+    }
 
     return NextResponse.json({
       success: true,
