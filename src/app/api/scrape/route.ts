@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Redis } from '@upstash/redis';
+import { Ratelimit } from '@upstash/ratelimit';
 import { extractPriceFromHtml } from '@/lib/parser';
 
 export const maxDuration = 60; // 60 seconds (max for Hobby tier)
@@ -7,6 +8,12 @@ export const maxDuration = 60; // 60 seconds (max for Hobby tier)
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || '',
   token: process.env.KV_REST_API_TOKEN || '',
+});
+
+// Create a global rate limiter: maximum 10 requests per day total.
+const ratelimit = new Ratelimit({
+  redis: redis,
+  limiter: Ratelimit.slidingWindow(10, '1 d'),
 });
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_TOKEN;
@@ -44,6 +51,12 @@ async function sendDiscordMessage(userId: string, content: string) {
 
 export async function GET() {
   try {
+    // 1. Check Rate Limit (Global limit to prevent API abuse)
+    const { success } = await ratelimit.limit('global_scrape_limit');
+    if (!success) {
+      return NextResponse.json({ error: 'Rate limit exceeded. Maximum 10 scrapes per day allowed.' }, { status: 429 });
+    }
+
     const targetUrl = 'https://www.hsnstore.pt/marcas/sport-series/evowhey-protein';
     
     // Use ScrapingAnt if the key is provided in Vercel (10,000 free requests/month)
