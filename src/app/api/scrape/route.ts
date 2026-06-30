@@ -4,7 +4,10 @@ import { extractPriceFromHtml } from '@/lib/parser';
 
 export const maxDuration = 60; // 60 seconds (max for Hobby tier)
 
-const redis = Redis.fromEnv();
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || '',
+  token: process.env.KV_REST_API_TOKEN || '',
+});
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_TOKEN;
 

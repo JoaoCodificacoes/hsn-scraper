@@ -10,11 +10,9 @@ jest.mock('discord-interactions', () => ({
 jest.mock('@upstash/redis', () => {
   const mockSadd = jest.fn();
   return {
-    Redis: {
-      fromEnv: () => ({
-        sadd: mockSadd
-      })
-    }
+    Redis: jest.fn().mockImplementation(() => ({
+      sadd: mockSadd
+    }))
   };
 });
 
@@ -72,7 +70,7 @@ describe('Discord POST Endpoint', () => {
     const res = await POST(req);
     const json = await res.json();
     
-    expect(Redis.fromEnv().sadd).toHaveBeenCalledWith('subs:evowhey', 'user123');
+    expect(new Redis().sadd).toHaveBeenCalledWith('subs:evowhey', 'user123');
     expect(json.type).toBe(4);
     expect(json.data.content).toContain('Successfully subscribed!');
   });

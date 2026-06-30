@@ -2,7 +2,10 @@ import { NextResponse } from 'next/server';
 import { verifyKey } from 'discord-interactions';
 import { Redis } from '@upstash/redis';
 
-const redis = Redis.fromEnv();
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || '',
+  token: process.env.KV_REST_API_TOKEN || '',
+});
 
 export async function POST(req: Request) {
   try {
