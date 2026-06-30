@@ -64,15 +64,18 @@ export async function POST(req: Request) {
       if (commandName === 'test') {
         const testMsg = `🚨 **[TEST DRIVE] PRICE DROP ALERT!** 🚨\nThe price of Evowhey 2Kg has dropped by **25.0%**!\nPrevious Baseline: 61.48€\nNew Price: **46.11€**\n\nBuy now: https://www.hsnstore.pt/marcas/sport-series/evowhey-protein`;
         
-        // Wait for the DM to be sent before returning, so Vercel doesn't freeze the process!
-        await sendDiscordMessage(userId, testMsg);
-
-        return NextResponse.json({
-          type: 4,
-          data: {
-            content: `🏎️ Test drive successful! I just sent you a DM!`,
-          }
-        });
+        try {
+          await sendDiscordMessage(userId, testMsg);
+          return NextResponse.json({
+            type: 4,
+            data: { content: `🏎️ Test drive successful! I just sent you a DM!` }
+          });
+        } catch (error: any) {
+          return NextResponse.json({
+            type: 4,
+            data: { content: `❌ I tried to DM you but Discord blocked me! Error: ${error.message}` }
+          });
+        }
       }
     }
 

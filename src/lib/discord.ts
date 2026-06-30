@@ -22,8 +22,9 @@ export async function sendDiscordMessage(userId: string, content: string): Promi
   });
   
   if (!dmRes.ok) {
-    console.error('Failed to create DM channel:', await dmRes.text());
-    return;
+    const errorText = await dmRes.text();
+    console.error('Failed to create DM channel:', errorText);
+    throw new Error(`Failed to create DM channel: ${errorText}`);
   }
   
   const dmChannel = await dmRes.json();
@@ -39,6 +40,8 @@ export async function sendDiscordMessage(userId: string, content: string): Promi
   });
 
   if (!msgRes.ok) {
-    console.error('Failed to send Discord message:', await msgRes.text());
+    const errorText = await msgRes.text();
+    console.error('Failed to send Discord message:', errorText);
+    throw new Error(`Failed to send Discord message: ${errorText}`);
   }
 }
