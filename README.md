@@ -20,6 +20,10 @@ sequenceDiagram
     User->>Vercel: /subscribe, /unsubscribe, /test
     Vercel->>Redis: Check User Rate Limit (15 req/min)
     Vercel->>Redis: Save/Remove User from subs:{product}
+    alt If /subscribe AND Sale is Active
+        Vercel->>Discord: INSTANT Open DM & Send Alert
+        Vercel->>Redis: Add User to alerted:{product}
+    end
     Vercel-->>User: Ephemeral Response
     
     Note over GitHub,Discord: Automated Scrape Flow
@@ -35,11 +39,12 @@ sequenceDiagram
         Vercel->>Redis: 5. Compare currentPrice vs baselinePrice
         
         alt If percentDrop >= 10%
-            Vercel->>Redis: 6. Get Subscribed Users for Product
+            Vercel->>Redis: 6. Get Subscribed Users who are NOT in alerted:{product}
             Vercel->>Discord: 7. Open DM & Send Alert
-            Vercel->>Redis: 8. Update Baseline to new Sale Price
+            Vercel->>Redis: 8. Add users to alerted:{product}
+            Note over Vercel,Redis: Baseline is preserved so new subscribers can see the drop!
         else If currentPrice > baselinePrice
-            Vercel->>Redis: 9. Sale ended! Reset Baseline higher.
+            Vercel->>Redis: 9. Sale ended! Reset Baseline higher & Clear alerted:{product}
         end
         Note over Vercel,Redis: If drop is minor (<10%), Baseline is NOT updated (Smart Sliding Baseline)
     end
@@ -47,11 +52,12 @@ sequenceDiagram
 
 ## ✨ Features
 1. **Multi-Product Tracking**: Simultaneously tracks multiple products (Evowhey 2Kg, Creatine 1Kg).
-2. **Smart Sliding Baseline**: Perfectly handles slow, multi-day creeping flash sales by refusing to lower the internal baseline until a full 10% drop occurs!
-3. **Automated Scraping**: Runs exactly at 9 AM and 4 PM local time using GitHub Actions.
-4. **Cloudflare Evasion**: Uses the ScrapingAnt Proxy API (bypassing heavy headless browsers) to fetch HSN pricing fast and reliably.
-5. **Discord Bot & DM Alerts**: Simply type `/subscribe` in a server with the bot, and it will automatically Direct Message you when a sale hits. Includes `/unsubscribe` and a `/test` drive command.
-6. **Anti-Spam Security**: 
+2. **Instant Mid-Sale Alerts**: If someone types `/subscribe` while a sale is currently active, the bot detects it and instantly sends them a DM on the spot!
+3. **Smart Sliding Baseline**: Perfectly handles slow, multi-day creeping flash sales by refusing to lower the internal baseline until a full 10% drop occurs!
+4. **Automated Scraping**: Runs exactly at 9 AM and 4 PM local time using GitHub Actions.
+5. **Cloudflare Evasion**: Uses the ScrapingAnt Proxy API (bypassing heavy headless browsers) to fetch HSN pricing fast and reliably.
+6. **Discord Bot & DM Alerts**: Simply type `/subscribe` in a server with the bot, and it will automatically Direct Message you when a sale hits. Includes `/unsubscribe` and a `/test` drive command.
+7. **Anti-Spam Security**: 
    - Global Scraper Limit: Maximum 10 public requests per day (Cron jobs bypass this using a private `CRON_SECRET`).
    - Discord Bot Limit: Strict limit of 15 slash commands per minute per user to protect the database from malicious spam bots.
 
