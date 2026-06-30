@@ -30,22 +30,48 @@ export async function POST(req: Request) {
     // 2 = Slash Command
     if (body.type === 2) {
       const commandName = body.data.name;
+      const userId = body.member?.user?.id || body.user?.id;
+      
+      if (!userId) {
+        return NextResponse.json({ type: 4, data: { content: 'Could not identify your User ID.' } });
+      }
       
       if (commandName === 'subscribe') {
         const productOption = body.data.options?.[0]?.value || 'evowhey';
-        const userId = body.member?.user?.id || body.user?.id;
-        
-        if (!userId) {
-          return NextResponse.json({ type: 4, data: { content: 'Could not identify your User ID.' } });
-        }
-
-        // Add user to the Set of subscribers for this product
         await redis.sadd(`subs:${productOption}`, userId);
 
         return NextResponse.json({
           type: 4,
           data: {
             content: `✅ Successfully subscribed! You will be pinged if the price of **${productOption}** drops.`,
+          }
+        });
+      }
+      
+      if (commandName === 'unsubscribe') {
+        const productOption = body.data.options?.[0]?.value || 'evowhey';
+        await redis.srem(`subs:${productOption}`, userId);
+
+        return NextResponse.json({
+          type: 4,
+          data: {
+            content: `✅ Successfully unsubscribed from **${productOption}** alerts.`,
+          }
+        });
+      }
+
+      if (commandName === 'test') {
+        // Run test drive asynchronously so Discord receives the ACK immediately
+        fetch('https://hsn-scraper.vercel.app/api/discord/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId })
+        }).catch(console.error);
+
+        return NextResponse.json({
+          type: 4,
+          data: {
+            content: `🏎️ Test drive initiated! I am sending you a DM right now...`,
           }
         });
       }
@@ -58,3 +84,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
