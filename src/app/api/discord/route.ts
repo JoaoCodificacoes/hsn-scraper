@@ -49,12 +49,45 @@ export async function POST(req: Request) {
       
       if (commandName === 'subscribe') {
         const productOption = body.data.options?.[0]?.value || 'evowhey';
+        
+        // Add user to the Set of subscribers for this product
         await redis.sadd(`subs:${productOption}`, userId);
+
+        let responseText = `✅ Successfully subscribed! You will be pinged if the price of **${productOption}** drops.`;
+
+        // Check if there is an ACTIVE sale right now!
+        const BASELINE_KEY = `price:${productOption}`;
+        const CURRENT_KEY = `current_price:${productOption}`;
+        const ALERTED_KEY = `alerted:${productOption}`;
+
+        const [baseline, current] = await Promise.all([
+          redis.get<number>(BASELINE_KEY),
+          redis.get<number>(CURRENT_KEY)
+        ]);
+
+        if (baseline && current) {
+          const percentDrop = ((baseline - current) / baseline) * 100;
+          
+          if (percentDrop >= 10) {
+            // Instant Alert!
+            const alertMsg = `🚨 **PRICE DROP ALERT!** 🚨\nThe price of **${productOption}** is CURRENTLY dropped by **${percentDrop.toFixed(1)}%**!\nPrevious Baseline: ${baseline}€\nNew Price: **${current}€**\n\nBuy now!`;
+            
+            try {
+              await sendDiscordMessage(userId, alertMsg);
+              // Mark them as alerted so the cron doesn't spam them again
+              await redis.sadd(ALERTED_KEY, userId);
+              
+              responseText = `✅ Successfully subscribed! \n\n👀 **Wait a minute... there is a flash sale active right now!** I just sent you a DM!`;
+            } catch (err: any) {
+              console.error('Failed to send instant alert:', err.message);
+            }
+          }
+        }
 
         return NextResponse.json({
           type: 4,
           data: {
-            content: `✅ Successfully subscribed! You will be pinged if the price of **${productOption}** drops.`,
+            content: responseText,
           }
         });
       }

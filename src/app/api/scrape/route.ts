@@ -52,16 +52,22 @@ export async function GET(req: Request) {
       }
 
       // 3. Database / Logic
-      const DB_KEY = `price:${product.id}`;
+      const BASELINE_KEY = `price:${product.id}`;
+      const CURRENT_KEY = `current_price:${product.id}`;
       const SUBS_KEY = `subs:${product.id}`;
-      const previousPrice = await redis.get<number>(DB_KEY);
+      const ALERTED_KEY = `alerted:${product.id}`;
+      
+      const previousPrice = await redis.get<number>(BASELINE_KEY);
 
       let dropDetected = false;
       let percentDrop = 0;
 
+      // Always save the absolute latest price so the Discord bot can check it
+      await redis.set(CURRENT_KEY, currentPrice);
+
       if (!previousPrice) {
         // First time running ever, set the initial baseline price
-        await redis.set(DB_KEY, currentPrice);
+        await redis.set(BASELINE_KEY, currentPrice);
       } else {
         const difference = previousPrice - currentPrice;
         percentDrop = (difference / previousPrice) * 100;
@@ -69,20 +75,27 @@ export async function GET(req: Request) {
         if (percentDrop >= 10) {
           dropDetected = true;
           
-          // Notify subscribers
+          // Get all subscribers who HAVE NOT been alerted yet for this specific sale
           const subscribers = await redis.smembers(SUBS_KEY);
+          const alreadyAlerted = await redis.smembers(ALERTED_KEY);
+          const unalertedUsers = subscribers.filter(id => !alreadyAlerted.includes(id));
+          
           const alertMsg = `🚨 **PRICE DROP ALERT!** 🚨\nThe price of **${product.name}** has dropped by **${percentDrop.toFixed(1)}%**!\nPrevious Baseline: ${previousPrice}€\nNew Price: **${currentPrice}€**\n\nBuy now: ${product.url}`;
           
-          for (const userId of subscribers) {
+          for (const userId of unalertedUsers) {
             await sendDiscordMessage(userId, alertMsg);
+            // Mark them as alerted so we don't spam them again during this sale
+            await redis.sadd(ALERTED_KEY, userId);
           }
 
-          // Reset baseline to the new low so we don't keep alerting every 12 hours while the sale is active
-          await redis.set(DB_KEY, currentPrice);
+          // NOTE: We DO NOT update the baseline here! We keep the high baseline 
+          // so new subscribers can still see the drop relative to the real baseline.
 
         } else if (currentPrice > previousPrice) {
           // Price went back up (sale ended, or base price increased). Establish new high baseline.
-          await redis.set(DB_KEY, currentPrice);
+          await redis.set(BASELINE_KEY, currentPrice);
+          // CLEAR the alerted list since the sale is over!
+          await redis.del(ALERTED_KEY);
         }
       }
 
