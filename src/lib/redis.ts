@@ -12,3 +12,9 @@ export const ratelimit = new Ratelimit({
   redis: redis,
   limiter: Ratelimit.slidingWindow(10, '1 d'),
 });
+
+// User-based rate limiter to protect the DB from Discord command spam
+export const discordRatelimit = new Ratelimit({
+  redis: redis,
+  limiter: Ratelimit.slidingWindow(15, '1 m'),
+});

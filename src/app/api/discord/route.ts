@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { verifyKey } from 'discord-interactions';
-import { redis } from '@/lib/redis';
+import { redis, discordRatelimit } from '@/lib/redis';
 import { sendDiscordMessage } from '@/lib/discord';
 
 export async function POST(req: Request) {
@@ -36,6 +36,16 @@ export async function POST(req: Request) {
       if (!userId) {
         return NextResponse.json({ type: 4, data: { content: 'Could not identify your User ID.' } });
       }
+
+      // --- USER RATE LIMIT ---
+      const { success } = await discordRatelimit.limit(`discord_limit_${userId}`);
+      if (!success) {
+        return NextResponse.json({
+          type: 4,
+          data: { content: `⚠️ Whoa there! You are sending commands too fast. Please wait a minute before trying again.` }
+        });
+      }
+      // -----------------------
       
       if (commandName === 'subscribe') {
         const productOption = body.data.options?.[0]?.value || 'evowhey';
