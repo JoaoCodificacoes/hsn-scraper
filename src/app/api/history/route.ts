@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { redis } from '@/lib/redis';
 
+export const revalidate = 3600; // Cache for 1 hour
+
 export async function GET() {
   try {
     const [evowheyRaw, creatineRaw] = await Promise.all([
