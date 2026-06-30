@@ -3,36 +3,12 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { format, parseISO } from "date-fns";
-import { enUS, pt } from "date-fns/locale";
 import { Activity, BellRing, TrendingDown } from "lucide-react";
+import { translations } from "@/lib/i18n";
 
 // Types
 type HistoryItem = { price: number; date: string };
 type ApiData = { evowhey: HistoryItem[]; creatine: HistoryItem[] };
-
-// Translations
-const translations = {
-  en: {
-    title: "HSN Price Analytics",
-    subtitle: "Real-time flash sale tracking and historical data.",
-    botActive: "Discord Bot Active",
-    chartTitle: "Lowest Daily Price",
-    chartDesc: "Tracking Evowhey 2Kg and Creatine 1Kg drops over time.",
-    noData: "No historical data collected yet.",
-    noDataSub: "Data will appear here after the next cron job runs!",
-    dateLocale: enUS
-  },
-  pt: {
-    title: "Análise de Preços HSN",
-    subtitle: "Rastreamento de promoções em tempo real e histórico de preços.",
-    botActive: "Bot Discord Ativo",
-    chartTitle: "Preço Mínimo Diário",
-    chartDesc: "Acompanhando quedas de preço de Evowhey 2Kg e Creatina 1Kg.",
-    noData: "Nenhum dado histórico coletado ainda.",
-    noDataSub: "Os dados aparecerão aqui após a próxima execução do cron job!",
-    dateLocale: pt
-  }
-};
 
 export default function Dashboard() {
   const [data, setData] = useState<ApiData | null>(null);
