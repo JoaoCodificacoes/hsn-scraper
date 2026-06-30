@@ -32,7 +32,7 @@ export async function fetchProxyHtml(targetUrl: string): Promise<string> {
 /**
  * High-level orchestration function to scrape a product and get its price.
  */
-export async function scrapeProductPrice(url: string): Promise<number | null> {
+export async function scrapeProductPrice(url: string, weightLabel?: string): Promise<number | null> {
   const html = await fetchProxyHtml(url);
-  return extractPriceFromHtml(html);
+  return extractPriceFromHtml(html, weightLabel);
 }

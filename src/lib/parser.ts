@@ -1,4 +1,4 @@
-export function extractPriceFromHtml(html: string): number | null {
+export function extractPriceFromHtml(html: string, weightLabel?: string): number | null {
   const lines = html.split('\n');
   let currentPrice: number | null = null;
 
@@ -22,9 +22,13 @@ export function extractPriceFromHtml(html: string): number | null {
             // Ensure 216 exists (weight attribute)
             if (data.attributes && data.attributes['216']) {
               const weightAttr = data.attributes['216'];
-              const twokgOpt = weightAttr.options.find((opt: any) => opt.label === '2Kg');
-              if (twokgOpt) {
-                const pid = twokgOpt.products[0];
+              // If a weightLabel was provided, use it. Otherwise default to the first available option.
+              const targetOpt = weightLabel 
+                ? weightAttr.options.find((opt: any) => opt.label === weightLabel)
+                : weightAttr.options[0];
+                
+              if (targetOpt && targetOpt.products.length > 0) {
+                const pid = targetOpt.products[0];
                 if (data.optionPrices && data.optionPrices[pid] && data.optionPrices[pid].finalPrice) {
                   currentPrice = data.optionPrices[pid].finalPrice.amount;
                 }

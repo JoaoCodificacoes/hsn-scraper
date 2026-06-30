@@ -9,12 +9,14 @@ const PRODUCTS = [
   {
     id: 'evowhey',
     name: 'Evowhey 2Kg',
-    url: 'https://www.hsnstore.pt/marcas/sport-series/evowhey-protein'
+    url: 'https://www.hsnstore.pt/marcas/sport-series/evowhey-protein',
+    weightLabel: '2Kg'
   },
   {
     id: 'creatine',
     name: 'Creatine 1Kg',
-    url: 'https://www.hsnstore.pt/marcas/raw-series/creatina-monoidrato-em-po-200-mesh'
+    url: 'https://www.hsnstore.pt/marcas/raw-series/creatina-monoidrato-em-po-200-mesh',
+    weightLabel: '1Kg'
   }
 ];
 
@@ -44,7 +46,7 @@ export async function GET(req: Request) {
 
     // 2. Loop through all products
     for (const product of PRODUCTS) {
-      const currentPrice = await scrapeProductPrice(product.url);
+      const currentPrice = await scrapeProductPrice(product.url, product.weightLabel);
 
       if (!currentPrice) {
         console.error(`Could not extract price data for ${product.id}`);
@@ -91,11 +93,15 @@ export async function GET(req: Request) {
           // NOTE: We DO NOT update the baseline here! We keep the high baseline 
           // so new subscribers can still see the drop relative to the real baseline.
 
-        } else if (currentPrice > previousPrice) {
-          // Price went back up (sale ended, or base price increased). Establish new high baseline.
-          await redis.set(BASELINE_KEY, currentPrice);
-          // CLEAR the alerted list since the sale is over!
+        } else {
+          // If percentDrop < 10, the sale is not active (or ended).
+          // We MUST clear the alerted list so they are ready for the next real sale!
           await redis.del(ALERTED_KEY);
+
+          if (currentPrice > previousPrice) {
+            // Price went back up (sale ended, or base price increased). Establish new high baseline.
+            await redis.set(BASELINE_KEY, currentPrice);
+          }
         }
       }
 
