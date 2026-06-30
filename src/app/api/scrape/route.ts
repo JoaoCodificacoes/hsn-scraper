@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { kv } from '@vercel/kv';
 import { extractPriceFromHtml } from '@/lib/parser';
 
+export const maxDuration = 60; // 60 seconds (max for Hobby tier)
+
+
 const DISCORD_BOT_TOKEN = process.env.DISCORD_TOKEN;
 
 async function sendDiscordMessage(userId: string, content: string) {
