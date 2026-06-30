@@ -88,9 +88,19 @@ export default function Dashboard() {
             </h1>
             <p className="text-zinc-400">{t.subtitle}</p>
           </div>
-          <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-full border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-            <BellRing className="w-4 h-4" />
-            <span className="text-sm font-medium tracking-wide">{t.botActive}</span>
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            <a 
+              href="https://discord.com/oauth2/authorize?client_id=1521296678638846074" 
+              target="_blank" 
+              rel="noreferrer"
+              className="flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white px-5 py-2 rounded-full font-medium transition-colors shadow-lg"
+            >
+              {t.addDiscord}
+            </a>
+            <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-full border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+              <BellRing className="w-4 h-4" />
+              <span className="text-sm font-medium tracking-wide">{t.botActive}</span>
+            </div>
           </div>
         </header>
 

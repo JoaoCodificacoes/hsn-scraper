@@ -9,6 +9,7 @@ export const translations = {
     chartDesc: "Tracking Evowhey and Creatine 1Kg drops over time.",
     noData: "No historical data collected yet.",
     noDataSub: "Data will appear here after the next cron job runs!",
+    addDiscord: "Add to Discord",
     dateLocale: enUS
   },
   pt: {
@@ -19,6 +20,7 @@ export const translations = {
     chartDesc: "Acompanhando quedas de preço de Evowhey e Creatina 1Kg.",
     noData: "Nenhum dado histórico coletado ainda.",
     noDataSub: "Os dados aparecerão aqui após a próxima execução do cron job!",
+    addDiscord: "Adicionar ao Discord",
     dateLocale: pt
   }
 };
