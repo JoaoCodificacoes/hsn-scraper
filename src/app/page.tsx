@@ -1,220 +1,120 @@
 "use client";
 
-import React, { useEffect, useState, useMemo } from "react";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { format, parseISO } from "date-fns";
-import type { Locale } from "date-fns";
-import { Activity, BellRing, TrendingDown } from "lucide-react";
-import { translations } from "@/lib/i18n";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowDownRight, ArrowRight, Bell, Check, ChevronRight, Clock3, RefreshCw, TrendingDown } from "lucide-react";
+import { ProductCard } from "@/components/product-card";
+import { PRODUCTS } from "@/lib/config";
+import { normalizeHistory, timeDomain, type Observation, type Period } from "@/lib/history";
+import { translations, type Language } from "@/lib/i18n";
 
-// Types
-type HistoryItem = { price: number; date: string };
-type ApiData = { evowhey: HistoryItem[]; creatine: HistoryItem[] };
-type ChartPoint = { date: string; evowhey?: number; creatine?: number };
-
-function PriceChart({
-  data,
-  dataKey,
-  name,
-  color,
-  title,
-  desc,
-  noData,
-  noDataSub,
-  dateLocale,
-}: {
-  data: ChartPoint[];
-  dataKey: "evowhey" | "creatine";
-  name: string;
-  color: string;
-  title: string;
-  desc: string;
-  noData: string;
-  noDataSub: string;
-  dateLocale: Locale;
-}) {
-  const seriesData = data.filter((d) => d[dataKey] !== undefined);
-
-  return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-xl">
-      <div className="mb-6 space-y-1">
-        <h2 className="text-xl font-semibold text-zinc-100">{title}</h2>
-        <p className="text-sm text-zinc-400">{desc}</p>
-      </div>
-
-      <div className="h-[400px] w-full">
-        {seriesData.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#3f3f46" vertical={false} />
-              <XAxis
-                dataKey="date"
-                stroke="#a1a1aa"
-                tick={{ fill: "#a1a1aa", fontSize: 12 }}
-                tickFormatter={(val) => {
-                  try { return format(parseISO(val), "MMM d", { locale: dateLocale }) } catch { return val }
-                }}
-                tickMargin={10}
-              />
-              <YAxis
-                stroke="#a1a1aa"
-                tick={{ fill: "#a1a1aa", fontSize: 12 }}
-                tickFormatter={(val) => `€${val}`}
-                domain={["auto", "auto"]}
-              />
-              <Tooltip
-                contentStyle={{ backgroundColor: "#18181b", borderColor: "#3f3f46", borderRadius: "8px" }}
-                itemStyle={{ color: "#fff" }}
-                labelStyle={{ color: "#a1a1aa", marginBottom: "8px" }}
-                formatter={(value: any, name: any) => [`€${Number(value).toFixed(2)}`, name]}
-                labelFormatter={(label) => {
-                  try { return format(parseISO(label as string), "MMMM d, yyyy", { locale: dateLocale }) } catch { return label }
-                }}
-              />
-              <Line
-                type="monotone"
-                dataKey={dataKey}
-                name={name}
-                stroke={color}
-                strokeWidth={3}
-                dot={{ fill: color, strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, strokeWidth: 0 }}
-                connectNulls
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <div className="h-full w-full flex flex-col items-center justify-center text-zinc-500 border-2 border-dashed border-zinc-800 rounded-xl">
-            <Activity className="w-10 h-10 mb-3 opacity-50" />
-            <p>{noData}</p>
-            <p className="text-sm mt-1">{noDataSub}</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+const DISCORD_URL = "https://discord.com/oauth2/authorize?client_id=1521296678638846074";
+type History = Record<string, Observation[]>;
 
 export default function Dashboard() {
-  const [data, setData] = useState<ApiData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [lang, setLang] = useState<"en" | "pt">("en");
+  const [data, setData] = useState<History>({});
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [lang, setLang] = useState<Language>("en");
+  const [period, setPeriod] = useState<Period>("all");
+  const [request, setRequest] = useState(0);
+  const [now, setNow] = useState(0);
 
   useEffect(() => {
-    // Detect browser language
-    if (typeof navigator !== "undefined") {
-      const browserLang = navigator.language.toLowerCase();
-      if (browserLang.startsWith("pt")) {
-        setLang("pt");
-      }
-    }
-
-    fetch("/api/history")
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.success) {
-          setData(json.data);
-        }
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Failed to fetch history:", err);
-        setLoading(false);
-      });
+    const frame = requestAnimationFrame(() => {
+      let saved: string | null = null;
+      try { saved = localStorage.getItem("hsn-language"); } catch { /* Browser storage can be disabled. */ }
+      setLang(saved === "pt" || saved === "en" ? saved : navigator.language.startsWith("pt") ? "pt" : "en");
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
 
-  const chartData = useMemo(() => {
-    if (!data) return [];
-    
-    // Group by day and take minimum price
-    const grouped: Record<string, { date: string; evowhey?: number; creatine?: number }> = {};
-    
-    const processSeries = (items: HistoryItem[], key: "evowhey" | "creatine") => {
-      items.forEach(item => {
-        if (!item.date || !item.price) return;
-        const day = item.date.split("T")[0]; // YYYY-MM-DD
-        if (!grouped[day]) {
-          grouped[day] = { date: day };
-        }
-        const existingPrice = grouped[day][key];
-        if (existingPrice === undefined || item.price < existingPrice) {
-          grouped[day][key] = item.price;
-        }
-      });
-    };
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
 
-    if (data.evowhey) processSeries(data.evowhey, "evowhey");
-    if (data.creatine) processSeries(data.creatine, "creatine");
-
-    // Convert to sorted array
-    return Object.values(grouped).sort((a, b) => a.date.localeCompare(b.date));
-  }, [data]);
+  useEffect(() => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    let disposed = false;
+    async function load() {
+      try {
+        const response = await fetch("/api/history", { signal: controller.signal });
+        const json = await response.json();
+        if (!response.ok || !json.success || !json.data || typeof json.data !== "object") throw new Error("History unavailable");
+        const history = Object.fromEntries(PRODUCTS.map(product => [product.id, normalizeHistory(json.data[product.id])]));
+        if (!disposed) { setData(history); setNow(Date.now()); setStatus("ready"); }
+      } catch {
+        if (!disposed) setStatus("error");
+      } finally { clearTimeout(timeout); }
+    }
+    void load();
+    return () => { disposed = true; clearTimeout(timeout); controller.abort(); };
+  }, [request]);
 
   const t = translations[lang];
+  const domain = useMemo(() => timeDomain(Object.values(data), period, now), [data, period, now]);
+  const count = Object.values(data).reduce((total, points) => total + points.length, 0);
+  const isStale = Object.values(data).some(points => points.length > 0 && now - points[points.length - 1].timestamp > 48 * 3_600_000);
+  const formatCount = new Intl.NumberFormat(t.locale);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-zinc-950 text-white">
-        <Activity className="animate-spin text-emerald-400 w-12 h-12" />
-      </div>
-    );
+  function changeLanguage(language: Language) {
+    setLang(language);
+    try { localStorage.setItem("hsn-language", language); } catch { /* Keep the control usable without storage. */ }
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white p-6 sm:p-12 font-sans selection:bg-emerald-500/30">
-      <div className="max-w-5xl mx-auto space-y-8">
-        
-        {/* Header */}
-        <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-zinc-800 pb-6">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold tracking-tight text-zinc-100 flex items-center gap-3">
-              <TrendingDown className="text-emerald-400 w-8 h-8" />
-              {t.title}
-            </h1>
-            <p className="text-zinc-400">{t.subtitle}</p>
+    <div className="dashboard">
+      <a href="#prices" className="skip-link">{t.overview}</a>
+      <header className="site-header shell">
+        <a href="#" className="brand" aria-label="HSN Price Tracker">
+          <span className="brand-icon"><TrendingDown size={22} strokeWidth={2.5} /></span>
+          <span>HSN<span className="brand-light"> / price tracker</span></span>
+        </a>
+        <nav className="header-nav" aria-label={t.overview}>
+          <a href="#prices">{t.overview}</a><a href="#alerts">{t.howItWorks}</a>
+        </nav>
+        <div className="header-actions">
+          <div className="language-switch" role="group" aria-label={t.language}>
+            {(["en", "pt"] as const).map(language => <button key={language} onClick={() => changeLanguage(language)} aria-pressed={lang === language}>{language.toUpperCase()}</button>)}
           </div>
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-            <a 
-              href="https://discord.com/oauth2/authorize?client_id=1521296678638846074" 
-              target="_blank" 
-              rel="noreferrer"
-              className="flex items-center gap-2 bg-[#5865F2] hover:bg-[#4752C4] text-white px-5 py-2 rounded-full font-medium transition-colors shadow-lg"
-            >
-              {t.addDiscord}
-            </a>
-            <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-400 px-4 py-2 rounded-full border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-              <BellRing className="w-4 h-4" />
-              <span className="text-sm font-medium tracking-wide">{t.botActive}</span>
+          <a className="button button-small" href={DISCORD_URL} target="_blank" rel="noreferrer"><Bell size={15} /><span>{t.alerts}</span><ArrowRight size={15} /></a>
+        </div>
+      </header>
+
+      <main className="shell">
+        <section className="hero">
+          <div className="hero-copy">
+            <p className="eyebrow"><span className="tiny-dot" />{t.eyebrow}</p>
+            <h1>{t.title}<ArrowDownRight aria-hidden="true" /></h1>
+            <p className="hero-description">{t.subtitle}</p>
+          </div>
+          <div className="hero-facts">
+            <div><span>{t.tracking}</span><strong>02<span className="fact-dot">.</span></strong></div>
+            <div><span>{t.observations}</span><strong>{status === "ready" ? formatCount.format(count) : "—"}<span className="fact-dot">.</span></strong></div>
+          </div>
+        </section>
+
+        <section id="prices" className="prices-section" aria-labelledby="prices-heading">
+          <div className="section-heading">
+            <div><p className="eyebrow muted">01 / {t.overview}</p><h2 id="prices-heading">{t.history}</h2><p>{t.historySub}</p></div>
+            <div className="period-switch" role="group" aria-label={t.rangeLabel}>
+              {([["7", t.sevenDays], ["30", t.thirtyDays], ["all", t.allTime]] as const).map(([value, label]) => <button key={value} aria-pressed={period === value} onClick={() => setPeriod(value)}>{label}</button>)}
             </div>
           </div>
-        </header>
 
-        {/* Chart Sections */}
-        <PriceChart
-          data={chartData}
-          dataKey="evowhey"
-          name="Evowhey"
-          color="#10b981"
-          title={t.evowheyTitle}
-          desc={t.evowheyDesc}
-          noData={t.noData}
-          noDataSub={t.noDataSub}
-          dateLocale={t.dateLocale}
-        />
+          {status === "ready" && isStale && <div className="freshness-notice" role="status"><Clock3 size={17} /><strong>{t.stale}</strong><span>{t.staleSub}</span></div>}
+          {status === "error" ? <div className="page-state" role="alert"><RefreshCw size={28} /><h3>{t.error}</h3><p>{t.errorSub}</p><button className="button" onClick={() => { setStatus("loading"); setRequest(value => value + 1); }}>{t.retry}<ArrowRight size={16} /></button></div> :
+            <div className="product-list" aria-busy={status === "loading"}>
+              {status === "loading" ? <><p className="sr-only" role="status">{t.loading}</p>{PRODUCTS.map(product => <div key={product.id} className="product-skeleton"><div /><div /><div /></div>)}</> :
+                PRODUCTS.map((product, index) => <ProductCard key={product.id} product={product} index={index} points={data[product.id] ?? []} domain={domain} t={t} now={now} />)}
+            </div>}
+          <div className="chart-footnotes"><p>{t.chartNote}</p><p>{t.medianNote}</p></div>
+          <div className="source-line"><span><span className="tiny-dot" />{t.source}</span><span>{t.currency}</span></div>
+        </section>
 
-        <PriceChart
-          data={chartData}
-          dataKey="creatine"
-          name="Creatine 1Kg"
-          color="#3b82f6"
-          title={t.creatineTitle}
-          desc={t.creatineDesc}
-          noData={t.noData}
-          noDataSub={t.noDataSub}
-          dateLocale={t.dateLocale}
-        />
-
-      </div>
+        <section className="alert-panel" id="alerts" aria-labelledby="alerts-heading">
+          <div className="alert-copy"><span className="alert-icon"><Bell size={24} /></span><p className="eyebrow">{t.alertEyebrow}</p><h2 id="alerts-heading">{t.alertTitle}</h2><p>{t.alertSub}</p><a className="button" href={DISCORD_URL} target="_blank" rel="noreferrer">{t.alerts}<ArrowRight size={17} /></a></div>
+          <ol className="alert-steps">{[t.stepOne, t.stepTwo, t.stepThree].map((step, index) => <li key={step}><span className="step-number">0{index + 1}</span><span>{step}</span>{index === 2 ? <Check size={17} /> : <ChevronRight size={17} />}</li>)}</ol>
+        </section>
+      </main>
+      <footer className="site-footer shell"><span>{t.footer}</span><span>{t.footerNote}</span></footer>
     </div>
   );
 }
