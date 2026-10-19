@@ -42,10 +42,10 @@ export function chartPoints(points: Observation[]): ChartPoint[] {
 }
 
 export function timeDomain(series: Observation[][], period: Period, now: number): [number, number] {
-  if (period !== "all") return [now - Number(period) * DAY, now];
   const timestamps = series.flatMap(points => points.map(point => point.timestamp));
-  if (!timestamps.length) return [now - 30 * DAY, now];
-  const first = Math.min(...timestamps);
+  if (!timestamps.length) return [now - (period === "all" ? 30 : Number(period)) * DAY, now];
   const last = Math.max(...timestamps);
+  if (period !== "all") return [last - Number(period) * DAY, last];
+  const first = Math.min(...timestamps);
   return first === last ? [first - DAY / 2, last + DAY / 2] : [first, last];
 }

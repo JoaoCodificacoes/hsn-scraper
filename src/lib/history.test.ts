@@ -39,12 +39,25 @@ test("retains intraday observations and breaks only gaps over 36 hours", () => {
   assert.deepEqual(chartPoints(points.slice(0, 2)), points.slice(0, 2));
 });
 
-test("recent periods are relative to now, while all history stops at the last observation", () => {
+test("recent periods end at the newest shared observation even when history is stale", () => {
   const points = [{ timestamp: start, price: 10 }, { timestamp: start + day, price: 11 }];
   const now = start + 100 * day;
-  assert.deepEqual(timeDomain([points], "7", now), [now - 7 * day, now]);
+  const latest = start + day;
+  assert.deepEqual(timeDomain([points], "7", now), [latest - 7 * day, latest]);
+  assert.deepEqual(timeDomain([points], "30", now), [latest - 30 * day, latest]);
   assert.deepEqual(timeDomain([points], "all", now), [start, start + day]);
   assert.deepEqual(timeDomain([[]], "all", now), [now - 30 * day, now]);
   const single = timeDomain([[points[0]]], "all", now);
   assert.ok(single[0] < start && single[1] > start);
+});
+
+test("both products share the latest endpoint without shifting an older series forward", () => {
+  const older = [{ timestamp: start, price: 10 }];
+  const newer = [{ timestamp: start + 20 * day, price: 20 }];
+  const now = start + 100 * day;
+  const domain = timeDomain([older, [], newer], "7", now);
+  assert.deepEqual(domain, [start + 13 * day, start + 20 * day]);
+  assert.equal(older.filter(point => point.timestamp >= domain[0] && point.timestamp <= domain[1]).length, 0);
+  assert.deepEqual(timeDomain([[], []], "7", now), [now - 7 * day, now]);
+  assert.deepEqual(timeDomain([[]], "30", now), [now - 30 * day, now]);
 });
