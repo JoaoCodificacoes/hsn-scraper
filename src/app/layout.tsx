@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "HSN Price Analytics",
-  description: "Track HSN store price drops over time.",
+  title: "HSN Price Tracker — Buy at the right price",
+  description: "See recorded HSN whey protein and creatine prices, compare historical lows, and get Discord price-drop alerts.",
 };
 
 export default function RootLayout({
