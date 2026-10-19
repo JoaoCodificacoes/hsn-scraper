@@ -53,6 +53,7 @@ export default function Dashboard() {
   const count = Object.values(data).reduce((total, points) => total + points.length, 0);
   const isStale = Object.values(data).some(points => points.length > 0 && now - points[points.length - 1].timestamp > 48 * 3_600_000);
   const formatCount = new Intl.NumberFormat(t.locale);
+  const formatDate = new Intl.DateTimeFormat(t.locale, { day: "numeric", month: "short", year: "numeric" });
 
   function changeLanguage(language: Language) {
     setLang(language);
@@ -99,6 +100,7 @@ export default function Dashboard() {
             </div>
           </div>
 
+          {status === "ready" && count > 0 && <p className="range-caption" aria-live="polite"><span>{t.rangeNote}</span><span>{formatDate.format(domain[0])} – {formatDate.format(domain[1])}</span></p>}
           {status === "ready" && isStale && <div className="freshness-notice" role="status"><Clock3 size={17} /><strong>{t.stale}</strong><span>{t.staleSub}</span></div>}
           {status === "error" ? <div className="page-state" role="alert"><RefreshCw size={28} /><h3>{t.error}</h3><p>{t.errorSub}</p><button className="button" onClick={() => { setStatus("loading"); setRequest(value => value + 1); }}>{t.retry}<ArrowRight size={16} /></button></div> :
             <div className="product-list" aria-busy={status === "loading"}>

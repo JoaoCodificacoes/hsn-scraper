@@ -5,6 +5,7 @@ Captured from the production build on October 19, 2026, using a snapshot of the 
 - `dashboard-desktop.png`: 1440px, English.
 - `dashboard-mobile.png`: 390px, English.
 - `dashboard-portuguese.png`: 1440px, Portuguese.
+- `dashboard-7-days.png` and `dashboard-30-days.png`: period-filter fix, 1440px, English. Ranges explicitly end at the latest recorded check. With this history, the 7-day view contains 14 observations per product, and the 30-day view contains 57 Evowhey and 56 creatine observations. The stale-data notice stays visible.
 
 Browser verification covered widths from 320px to 1440px, shared chart dates, step paths, tooltips, keyboard focus, language persistence, period controls, observation tables, loading, API error/retry, empty histories, and a single observation. No horizontal overflow or page runtime errors were observed.
 
